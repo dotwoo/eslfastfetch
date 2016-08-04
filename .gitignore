@@ -22,3 +22,8 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+*Downloads/
+*.log
+*.tar.gz
+*.zip
