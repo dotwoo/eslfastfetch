@@ -123,7 +123,7 @@ func (u *URL) Get() (res *http.Response) {
 	if u.Parent != nil {
 		req.Header.Set("Referer", u.Parent.Url)
 	}
-	client := http.Client{Timeout: time.Second * 5}
+	client := http.Client{Timeout: time.Second * 10}
 	res, err := client.Do(req)
 
 	if err != nil {

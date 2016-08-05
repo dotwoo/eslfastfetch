@@ -17,6 +17,7 @@ var url = flag.String("url", "", "起始网址")
 var downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
 var sUrl = flag.String("furl", "", "自定义过滤网页链接的关键字")
 var sPic = flag.String("fpic", "", "自定义过滤图片链接的关键字")
+var sParent = flag.String("fparent", "", "自定义过滤图片父页面链接须包含的关键字")
 var imgAttr = flag.String("img", "src", "自定义图片属性名称，如data-original")
 var minSize = flag.Int("size", 150, "最小图片大小 单位kB")
 var maxNum = flag.Int("no", 20, "需要爬取的有效图片数量")
@@ -43,6 +44,7 @@ func main() {
 	}
 	fmt.Printf("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <img>attribution:%v\n",
 		*url, *minSize, *maxNum, *recursive, *downloadDir, *imgAttr)
+	fmt.Printf("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sPic, *sParent)
 	u := NewURL(*url, nil, *downloadDir)
 	HOST = u.Host
 	fmt.Println(HOST)
@@ -200,6 +202,10 @@ func parsePics(doc *goquery.Document, parent *URL, picChan chan *URL) {
 					log.Printf("图片已爬取，忽略 %v", new.Url)
 				} else {
 					seen.Add(new.Url)
+					if !Contains(parent.Path, *sParent) {
+						log.Printf("父页面不满足过滤关键词，忽略 %v", new.Url)
+						return
+					}
 					if !Contains(new.Path, *sPic) {
 						log.Printf("不包含图片过滤关键词，忽略 %v", new.Url)
 						return
