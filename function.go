@@ -34,7 +34,7 @@ func trace(msg string) func() {
 }
 
 func mkdirs(s string) {
-	err := os.MkdirAll(s, os.ModeDir)
+	err := os.MkdirAll(s, 0777)
 	if err != nil {
 		fatal(err)
 	} else {
