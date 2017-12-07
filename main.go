@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	fp "path/filepath"
 	"runtime"
 	. "strings"
@@ -13,24 +14,50 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var url = flag.String("url", "https://www.eslfast.com/kidsenglish/", "起始网址")
-var downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
-var sUrl = flag.String("furl", "", "自定义过滤网页链接的关键字")
-var sMp3 = flag.String("fmp3", "", "自定义过滤Mp3链接的关键字")
-var sParent = flag.String("fparent", "", "自定义过滤Mp3父页面链接须包含的关键字")
-var imgAttr = flag.String("img", "src", "自定义图片属性名称，如data-original")
-var minSize = flag.Int("size", 150, "最小Mp3大小 单位kB")
-var maxNum = flag.Int("no", 20, "需要爬取的有效图片数量")
-var recursive = flag.Bool("re", true, "是否需要递归当前页面链接")
+var (
+	url         = flag.String("url", "https://www.eslfast.com/kidsenglish/", "起始网址")
+	downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
+	sUrl        = flag.String("furl", "", "自定义过滤网页链接的关键字")
+	sMp3        = flag.String("fmp3", "", "自定义过滤Mp3链接的关键字")
+	sParent     = flag.String("fparent", "", "自定义过滤Mp3父页面链接须包含的关键字")
+	imgAttr     = flag.String("img", "src", "自定义图片属性名称，如data-original")
+	minSize     = flag.Int("size", 150, "最小Mp3大小 单位kB")
+	maxNum      = flag.Int("no", 20, "需要爬取的有效图片数量")
+	recursive   = flag.Bool("re", true, "是否需要递归当前页面链接")
 
-var seen = History{m: map[string]bool{}}
-var count = new(Counts)
-var urlChan = make(chan *URL, 99999999)
-var mp3Chan = make(chan *URL, 99999999)
-var done = make(chan int)
+	seen    = History{m: map[string]bool{}}
+	count   = new(Counts)
+	urlChan = make(chan *URL, 99999999)
+	mp3Chan = make(chan *URL, 99999999)
+	done    = make(chan int)
 
-var goDownNum = make(chan int, 2)
-var HOST string
+	goDownNum = make(chan int, 2)
+	HOST      string
+)
+
+var (
+	// These fields are populated by govvv
+	Version    = "untouched"
+	BuildDate  string
+	GitCommit  string
+	GitBranch  string
+	GitState   string
+	GitSummary string
+)
+
+//pVersion 版本打印函数
+func pVersion() {
+	file, _ := exec.LookPath(os.Args[0])
+	name := fp.Base(file)
+	fmt.Println(name, "\nVersion:", Version)
+	fmt.Println("branch:", GitBranch, "\ncommit:", GitCommit)
+	fmt.Println("summary:", GitSummary)
+	fmt.Println("Build:", BuildDate)
+}
+
+var (
+	ver = flag.Bool("v", false, "show the version")
+)
 
 func main() {
 	// In earlier releases of Go, the default value was 1,
@@ -38,6 +65,10 @@ func main() {
 	runtime.GOMAXPROCS(2)
 	flag.Parse()
 
+	if *ver {
+		pVersion()
+		os.Exit(0)
+	}
 	if *url == "" {
 		fmt.Println("Use -h or --help to get help!")
 		return

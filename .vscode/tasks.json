@@ -6,7 +6,14 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "go build",
+            "command": "./build.sh",
+            "args": [],
+            "problemMatcher": [
+                "$go"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
