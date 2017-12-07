@@ -17,9 +17,9 @@ import (
 var (
 	url         = flag.String("url", "https://www.eslfast.com/kidsenglish/", "起始网址")
 	downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
-	sUrl        = flag.String("furl", "kidsenglish", "自定义网页链接的关键字")
-	sMp3        = flag.String("fmp3", "", "自定义过滤Mp3链接的关键字")
-	sParent     = flag.String("fparent", "kidsenglish", "自定义过滤Mp3父页面链接须包含的关键字")
+	sUrl        = flag.String("surl", "kidsenglish", "自定义网页链接的关键字")
+	sMp3        = flag.String("smp3", "ke0", "自定义Mp3链接的关键字")
+	sParent     = flag.String("sparent", "kidsenglish", "自定义过滤Mp3父页面链接须包含的关键字")
 	mp3Attr     = flag.String("mp3", "src", "自定义mp3引用属性名称，如data-original")
 	minSize     = flag.Int("size", 150, "最小Mp3大小 单位kB")
 	maxNum      = flag.Int("no", 20, "需要爬取的有效mp3数量")
