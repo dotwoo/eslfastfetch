@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	neturl "net/url"
 	fp "path/filepath"
 	. "strings"
 	"sync"
@@ -88,12 +89,16 @@ func NewURL(url string, p *URL, dir string) *URL {
 
 func (u *URL) Prepare(dir string) {
 	if !HasPrefix(u.Url, "http") {
-		//log.Printf("Not start with 'http': %q\n", u.Url)
-		if !HasPrefix(u.Url, "//") {
-			u.Url = "//" + fp.Join(u.Parent.Host, u.Url)
-			u.Url = Replace(u.Url, "\\", "/", -1)
+		base, err := neturl.Parse(u.Parent.Url)
+		if err != nil {
+			holmes.Errorln(err.Error())
+			return
 		}
-		u.Url = "http:" + u.Url
+		if HasPrefix(u.Url, "..") {
+			u.Url = "../" + u.Url
+		}
+		base.Path = fp.Join(base.Path, u.Url)
+		u.Url = base.String()
 	}
 	part := Split(u.Url, "/")
 	u.Protocol = part[0]
@@ -115,7 +120,7 @@ func (u *URL) Prepare(dir string) {
 		path = ele[0]
 	}
 	if !IsMp3(u.Name) {
-		path += ".jpg"
+		path += ".mp3"
 	}
 	u.FilePath = fp.Join(dirPath, fp.Base(fp.Dir(path)), fp.Base(path))
 }
