@@ -94,11 +94,12 @@ func (u *URL) Prepare(dir string) {
 			holmes.Errorln(err.Error())
 			return
 		}
-		if HasPrefix(u.Url, "..") {
-			u.Url = "../" + u.Url
+		uUrl, err := neturl.Parse(u.Url)
+		if err != nil {
+			holmes.Errorln(err.Error())
+			return
 		}
-		base.Path = fp.Join(base.Path, u.Url)
-		u.Url = base.String()
+		u.Url = base.ResolveReference(uUrl).String()
 	}
 	part := Split(u.Url, "/")
 	u.Protocol = part[0]
