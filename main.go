@@ -212,12 +212,12 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 			} else {
 				new := NewURL(url, parent, *downloadDir)
 				if seen.Has(new.Url) {
-					holmes.Infoln("链接已爬取，忽略", new.Url)
+					holmes.Debugln("链接已爬取，忽略", new.Url)
 				} else {
 					seen.Add(new.Url)
 					if !IsMp3(new.Url) {
 						if !Contains(new.Url, HOST) {
-							holmes.Infoln("链接已超出本站，忽略", new.Url)
+							holmes.Debugln("链接已超出本站，忽略", new.Url)
 							return
 						}
 					}
@@ -232,7 +232,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 						select {
 						case urlChan <- new:
 							if Contains(url, "http") {
-								holmes.Infoln("New PAGE: ", url)
+								holmes.Debugln("New PAGE: ", url)
 							} else {
 								holmes.Infof("New PAGE: %s --> %s\n", url, new.Url)
 							}
@@ -261,11 +261,11 @@ func parseMp3(doc *goquery.Document, parent *URL, picChan chan *URL) {
 				} else {
 					seen.Add(new.Url)
 					if !Contains(parent.Path, *sParent) {
-						holmes.Infoln("父页面不满足过滤关键词，忽略", new.Url)
+						holmes.Debugln("父页面不满足过滤关键词，忽略", new.Url)
 						return
 					}
 					if !Contains(new.Path, *sMp3) {
-						holmes.Infoln("不包含图片过滤关键词，忽略", new.Url)
+						holmes.Infoln("不包含MP3过滤关键词，忽略", new.Url)
 						return
 					}
 					if exists(new.FilePath) {
