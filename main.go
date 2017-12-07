@@ -13,23 +13,23 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var url = flag.String("url", "", "起始网址")
+var url = flag.String("url", "https://www.eslfast.com/kidsenglish/", "起始网址")
 var downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
 var sUrl = flag.String("furl", "", "自定义过滤网页链接的关键字")
-var sPic = flag.String("fpic", "", "自定义过滤图片链接的关键字")
-var sParent = flag.String("fparent", "", "自定义过滤图片父页面链接须包含的关键字")
+var sMp3 = flag.String("fmp3", "", "自定义过滤Mp3链接的关键字")
+var sParent = flag.String("fparent", "", "自定义过滤Mp3父页面链接须包含的关键字")
 var imgAttr = flag.String("img", "src", "自定义图片属性名称，如data-original")
-var minSize = flag.Int("size", 150, "最小图片大小 单位kB")
+var minSize = flag.Int("size", 150, "最小Mp3大小 单位kB")
 var maxNum = flag.Int("no", 20, "需要爬取的有效图片数量")
 var recursive = flag.Bool("re", true, "是否需要递归当前页面链接")
 
 var seen = History{m: map[string]bool{}}
 var count = new(Counts)
 var urlChan = make(chan *URL, 99999999)
-var picChan = make(chan *URL, 99999999)
+var mp3Chan = make(chan *URL, 99999999)
 var done = make(chan int)
 
-var goPicNum = make(chan int, 20)
+var goDownNum = make(chan int, 2)
 var HOST string
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 	}
 	fmt.Printf("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <img>attribution:%v\n",
 		*url, *minSize, *maxNum, *recursive, *downloadDir, *imgAttr)
-	fmt.Printf("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sPic, *sParent)
+	fmt.Printf("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
 	u := NewURL(*url, nil, *downloadDir)
 	HOST = u.Host
 	fmt.Println(HOST)
@@ -52,7 +52,7 @@ func main() {
 	seen.Add(u.Url)
 	sleep(3)
 	go HandleHTML()
-	go HandlePic()
+	go HandleMp3()
 
 	<-done //等待信号，防止终端过早关闭
 	log.Printf("图片统计：下载%v", count.Value("download"))
@@ -73,9 +73,9 @@ func HandleHTML() {
 			fuck(err)
 
 			if *recursive {
-				parseLinks(doc, u, urlChan, picChan)
+				parseLinks(doc, u, urlChan, mp3Chan)
 			}
-			parsePics(doc, u, picChan)
+			parseMp3(doc, u, mp3Chan)
 
 			count.Inc("page")
 			log.Printf("当前爬取了 %v 个网页 %s", count.Value("page"), u.Url)
@@ -87,12 +87,12 @@ func HandleHTML() {
 	runtime.Gosched()
 }
 
-func HandlePic() {
-	for u := range picChan {
+func HandleMp3() {
+	for u := range mp3Chan {
 		u := u
-		goPicNum <- 1
+		goDownNum <- 1
 		go func() {
-			defer func() { <-goPicNum }()
+			defer func() { <-goDownNum }()
 			var data []byte
 			res := u.Get()
 			if res == nil {
@@ -100,7 +100,7 @@ func HandlePic() {
 				return
 			}
 			defer res.Body.Close()
-			count.Inc("pic")
+			count.Inc("mp3")
 			//if 200 <= res.StatusCode && res.StatusCode < 400 {
 			if res.StatusCode == 200 {
 				body := res.Body
@@ -157,7 +157,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 					log.Printf("链接已爬取，忽略 %v", new.Url)
 				} else {
 					seen.Add(new.Url)
-					if !IsPic(new.Url) {
+					if !IsMp3(new.Url) {
 						if !Contains(new.Url, HOST) {
 							log.Printf("链接已超出本站，忽略 %v", new.Url)
 							return
@@ -167,7 +167,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 						return
 					}
 
-					if IsPic(url) {
+					if IsMp3(url) {
 						picChan <- new
 						log.Printf("New <a> PIC: %s", url)
 					} else {
@@ -189,7 +189,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 	})
 }
 
-func parsePics(doc *goquery.Document, parent *URL, picChan chan *URL) {
+func parseMp3(doc *goquery.Document, parent *URL, picChan chan *URL) {
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
 		url, ok := s.Attr(*imgAttr)
 		url = Trim(url, " ")
@@ -206,7 +206,7 @@ func parsePics(doc *goquery.Document, parent *URL, picChan chan *URL) {
 						log.Printf("父页面不满足过滤关键词，忽略 %v", new.Url)
 						return
 					}
-					if !Contains(new.Path, *sPic) {
+					if !Contains(new.Path, *sMp3) {
 						log.Printf("不包含图片过滤关键词，忽略 %v", new.Url)
 						return
 					}

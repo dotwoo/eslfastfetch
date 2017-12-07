@@ -12,7 +12,7 @@ import (
 
 type Counts struct {
 	sync.RWMutex
-	page, pic, download uint64
+	page, mp3, download uint64
 }
 
 func (n *Counts) Inc(key string) {
@@ -21,8 +21,8 @@ func (n *Counts) Inc(key string) {
 	switch key {
 	case "page":
 		n.page += 1
-	case "pic":
-		n.pic += 1
+	case "mp3":
+		n.mp3 += 1
 	case "download":
 		n.download += 1
 	}
@@ -34,8 +34,8 @@ func (n *Counts) Value(key string) uint64 {
 	switch key {
 	case "page":
 		return n.page
-	case "pic":
-		return n.pic
+	case "mp3":
+		return n.mp3
 	case "download":
 		return n.download
 	default:
@@ -69,6 +69,8 @@ type URL struct {
 	Name     string
 	Origin   string
 	Path     string
+	Title    string
+	Content  string
 
 	Parent   *URL
 	FilePath string
@@ -110,7 +112,7 @@ func (u *URL) Prepare(dir string) {
 		ele := Split(path, "?")
 		path = ele[0]
 	}
-	if !IsPic(u.Name) {
+	if !IsMp3(u.Name) {
 		path += ".jpg"
 	}
 	u.FilePath = fp.Join(dirPath, fp.Base(fp.Dir(path)), fp.Base(path))

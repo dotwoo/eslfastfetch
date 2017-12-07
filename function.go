@@ -53,8 +53,8 @@ func exists(path string) bool {
 	return true
 }
 
-func IsPic(url string) bool {
-	exts := []string{"jpg", "png", "gif", "csv"}
+func IsMp3(url string) bool {
+	exts := []string{"mp3"}
 	for _, ext := range exts {
 		if Contains(ToLower(url), "."+ext) {
 			return true
