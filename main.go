@@ -17,9 +17,9 @@ import (
 var (
 	url         = flag.String("url", "https://www.eslfast.com/kidsenglish/", "起始网址")
 	downloadDir = flag.String("dir", "./Downloads/", "自定义存放的路径")
-	sUrl        = flag.String("furl", "", "自定义过滤网页链接的关键字")
+	sUrl        = flag.String("furl", "kidsenglish", "自定义网页链接的关键字")
 	sMp3        = flag.String("fmp3", "", "自定义过滤Mp3链接的关键字")
-	sParent     = flag.String("fparent", "", "自定义过滤Mp3父页面链接须包含的关键字")
+	sParent     = flag.String("fparent", "kidsenglish", "自定义过滤Mp3父页面链接须包含的关键字")
 	mp3Attr     = flag.String("mp3", "src", "自定义mp3引用属性名称，如data-original")
 	minSize     = flag.Int("size", 150, "最小Mp3大小 单位kB")
 	maxNum      = flag.Int("no", 20, "需要爬取的有效mp3数量")
@@ -95,12 +95,12 @@ func main() {
 	logger := startLog(*level)
 	defer logger.Stop()
 
-	holmes.Infoln("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <audio>attribution:%v\n",
+	holmes.Infof("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <audio>attribution:%v\n",
 		*url, *minSize, *maxNum, *recursive, *downloadDir, *mp3Attr)
-	holmes.Infoln("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
+	holmes.Infof("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
 	u := NewURL(*url, nil, *downloadDir)
 	HOST = u.Host
-	fmt.Println(HOST)
+	fmt.Println("采集站点:", HOST)
 	urlChan <- u
 	seen.Add(u.Url)
 	sleep(3)
@@ -108,7 +108,7 @@ func main() {
 	go HandleMp3()
 
 	<-done //等待信号，防止终端过早关闭
-	holmes.Infoln("图片统计：下载%v", count.Value("download"))
+	holmes.Infoln("图片统计：下载", count.Value("download"))
 	holmes.Infoln("END")
 }
 
@@ -123,15 +123,16 @@ func HandleHTML() {
 			}
 			//goquery会主动关闭res.Body
 			doc, err := goquery.NewDocumentFromResponse(res)
-			holmes.Errorln(err)
-
+			if err != nil {
+				holmes.Errorln(err)
+			}
 			if *recursive {
 				parseLinks(doc, u, urlChan, mp3Chan)
 			}
 			parseMp3(doc, u, mp3Chan)
 
 			count.Inc("page")
-			holmes.Infoln("当前爬取了 %v 个网页 %s", count.Value("page"), u.Url)
+			holmes.Infof("当前爬取了 %v 个网页 %s\n", count.Value("page"), u.Url)
 		default:
 			holmes.Infoln("待爬取队列为空，爬取完成")
 			done <- 1
@@ -183,10 +184,14 @@ func HandleMp3() {
 				}
 
 				f, e := os.Create(picFile)
-				holmes.Fatalln(e)
+				if e != nil {
+					holmes.Errorln(e)
+				}
 				defer f.Close()
 				_, e = f.Write(data)
-				holmes.Fatalln(e)
+				if e != nil {
+					holmes.Errorln(e)
+				}
 				count.Inc("download")
 				holmes.Infof("图片统计：下载%v 当前图片大小：%v kB\n", count.Value("download"), len(data)/1000)
 			} else {
@@ -222,7 +227,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 
 					if IsMp3(url) {
 						picChan <- new
-						holmes.Infoln("New <a> PIC:", url)
+						holmes.Infoln("New <a> Mp3:", url)
 					} else {
 						select {
 						case urlChan <- new:
@@ -264,7 +269,7 @@ func parseMp3(doc *goquery.Document, parent *URL, picChan chan *URL) {
 						return
 					}
 					if exists(new.FilePath) {
-						holmes.Infoln("图片已存在，忽略", new.Url)
+						holmes.Infoln("mp3已存在，忽略", new.Url)
 						return
 					}
 					picChan <- new
