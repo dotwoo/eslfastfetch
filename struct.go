@@ -8,6 +8,8 @@ import (
 	. "strings"
 	"sync"
 	"time"
+
+	"github.com/leesper/holmes"
 )
 
 type Counts struct {
@@ -132,7 +134,7 @@ func (u *URL) Get() (res *http.Response) {
 		if res != nil {
 			res.Body.Close()
 		}
-		fuck(err)
+		holmes.Errorln(err)
 		sleep(3)
 		return res
 	}

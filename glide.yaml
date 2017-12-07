@@ -2,3 +2,4 @@ package: github.com/dotwoo/eslfastgo
 import:
 - package: github.com/PuerkitoBio/goquery
   version: ^1.1.0
+- package: github.com/leesper/holmes

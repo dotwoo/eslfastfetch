@@ -30,3 +30,5 @@ _testmain.go
 vendor/
 glide.lock
 eslfastgo
+debug
+VERSION
