@@ -155,7 +155,7 @@ func (u *URL) Get() (res *http.Response) {
 		return res
 	}
 	if res.StatusCode != 200 {
-		fmt.Printf("Status code: %v", res.StatusCode)
+		fmt.Printf("Status code: %v\n", res.StatusCode)
 		sleep(3)
 	}
 	return res

@@ -102,7 +102,7 @@ func main() {
 
 	holmes.Infof("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <audio>attribution:%v\n",
 		*url, *minSize, *maxNum, *recursive, *downloadDir, *mp3Attr)
-	holmes.Infof("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
+	holmes.Infof("Filter: URL:%v Mp3:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
 	u := NewURL(*url, nil, *downloadDir)
 	HOST = u.Host
 	fmt.Println("采集站点:", HOST)
@@ -123,32 +123,34 @@ func HandleHTML() {
 	for {
 		select {
 		case u1 := <-urlChan:
-			u := u1
-			if u == nil {
+			if u1 == nil {
+				sleep(3)
 				holmes.Errorln("handle nil url")
 				continue
 			}
-			res := u.Get()
-			if res == nil {
-				holmes.Warnln("HTML response is nil! following process will not execute.")
-				return
-			}
-			//goquery会主动关闭res.Body
-			doc, err := goquery.NewDocumentFromResponse(res)
-			if err != nil {
-				holmes.Errorln(err)
-				continue
-			}
-			if *recursive {
-				parseLinks(doc, u, urlChan, mp3Chan)
-			}
-			if IsHtml(u.Url) {
-				parseContext(doc, u)
-			}
-			parseMp3(doc, u, mp3Chan)
 
-			count.Inc("page")
-			holmes.Infof("当前爬取了 %v 个网页 %s\n", count.Value("page"), u.Url)
+			func(u *URL) {
+				res := u.Get()
+				if res == nil {
+					holmes.Warnln("HTML response is nil! following process will not execute.")
+					return
+				}
+				//goquery会主动关闭res.Body
+				doc, err := goquery.NewDocumentFromResponse(res)
+				if err != nil {
+					holmes.Errorln(err)
+					return
+				}
+				if *recursive {
+					parseLinks(doc, u, urlChan, mp3Chan)
+				}
+				if IsHtml(u.Url) {
+					parseContext(doc, u)
+				}
+				parseMp3(doc, u, mp3Chan)
+				count.Inc("page")
+				holmes.Infof("当前爬取了 %v 个网页 %s\n", count.Value("page"), u.Url)
+			}(u1)
 		default:
 			holmes.Infoln("待爬取队列为空，爬取完成")
 			close(urlChan)
@@ -161,62 +163,64 @@ func HandleHTML() {
 
 func HandleMp3() {
 	for {
-		u, ok := <-mp3Chan
-		if u != nil {
-			var data []byte
-			res := u.Get()
-			if res == nil {
-				holmes.Infoln("HTML response is nil! following process will not execute.")
-				return
-			}
-			defer res.Body.Close()
-			count.Inc("mp3")
-			//if 200 <= res.StatusCode && res.StatusCode < 400 {
-			if res.StatusCode == 200 {
-				body := res.Body
-				data, _ = ioutil.ReadAll(body)
-				body.Close()
-				if res.ContentLength != int64(len(data)) {
-					holmes.Errorln("read mp3 ContentLength error ", res.ContentLength, u.Url)
+		u1, ok := <-mp3Chan
+		if u1 != nil {
+			func(u *URL) {
+				var data []byte
+				res := u.Get()
+				if res == nil {
+					holmes.Infoln("HTML response is nil! following process will not execute.")
 					return
 				}
-			} else {
-				holmes.Infoln(res.StatusCode)
-				sleep(3)
-				return
-			}
-			if len(data) == 0 {
-				return
-			}
-
-			if len(data) >= *minSize*1000 {
-				cwd, e := os.Getwd()
-				if e != nil {
-					cwd = "."
-				}
-				mp3File := fp.Join(cwd, u.FilePath)
-				if exists(mp3File) {
+				defer res.Body.Close()
+				count.Inc("mp3")
+				//if 200 <= res.StatusCode && res.StatusCode < 400 {
+				if res.StatusCode == 200 {
+					body := res.Body
+					data, _ = ioutil.ReadAll(body)
+					body.Close()
+					if res.ContentLength != int64(len(data)) {
+						holmes.Errorln("read mp3 ContentLength error ", res.ContentLength, u.Url)
+						return
+					}
+				} else {
+					holmes.Infoln("mp3 fetch error:", u.Url, res.StatusCode)
+					sleep(3)
 					return
 				}
-				mp3Dir := fp.Dir(mp3File)
-				if !exists(mp3Dir) {
-					mkdirs(mp3Dir)
+				if len(data) == 0 {
+					return
 				}
 
-				f, e := os.Create(mp3File)
-				if e != nil {
-					holmes.Errorln(e)
+				if len(data) >= *minSize*1000 {
+					cwd, e := os.Getwd()
+					if e != nil {
+						cwd = "."
+					}
+					mp3File := fp.Join(cwd, u.FilePath)
+					if exists(mp3File) {
+						return
+					}
+					mp3Dir := fp.Dir(mp3File)
+					if !exists(mp3Dir) {
+						mkdirs(mp3Dir)
+					}
+
+					f, e := os.Create(mp3File)
+					if e != nil {
+						holmes.Errorln(e)
+					}
+					defer f.Close()
+					_, e = f.Write(data)
+					if e != nil {
+						holmes.Errorln(e)
+					}
+					count.Inc("download")
+					holmes.Infof("mp3统计：下载%v 当前mp3大小：%v kB\n", count.Value("download"), len(data)/1000)
+				} else {
+					holmes.Infof("爬取%v 当前mp3大小：%v kB\n", count.Value("mp3"), len(data)/1000)
 				}
-				defer f.Close()
-				_, e = f.Write(data)
-				if e != nil {
-					holmes.Errorln(e)
-				}
-				count.Inc("download")
-				holmes.Infof("mp3统计：下载%v 当前mp3大小：%v kB\n", count.Value("download"), len(data)/1000)
-			} else {
-				holmes.Infof("爬取%v 当前mp3大小：%v kB\n", count.Value("mp3"), len(data)/1000)
-			}
+			}(u1)
 		}
 		if !ok && len(mp3Chan) == 0 {
 			mp3done <- 1
@@ -280,7 +284,7 @@ func parseContext(doc *goquery.Document, u *URL) {
 
 }
 
-func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) {
+func parseLinks(doc *goquery.Document, parent *URL, urlChan, mp3Chan chan *URL) {
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		url, ok := s.Attr("href")
 		url = Trim(url, " ")
@@ -309,7 +313,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 					}
 
 					if IsMp3(url) {
-						picChan <- new
+						mp3Chan <- new
 						holmes.Infoln("New <a> Mp3:", url)
 					} else {
 						select {
