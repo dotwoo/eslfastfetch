@@ -141,6 +141,9 @@ func (u *URL) Get() (res *http.Response) {
 		req.Header.Set("Referer", u.Parent.Url)
 	}
 	client := http.Client{Timeout: time.Second * 10}
+	if IsMp3(u.Url) {
+		client.Timeout = time.Second * 300
+	}
 	res, err := client.Do(req)
 
 	if err != nil {
