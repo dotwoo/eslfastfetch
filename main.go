@@ -125,6 +125,7 @@ func HandleHTML() {
 			doc, err := goquery.NewDocumentFromResponse(res)
 			if err != nil {
 				holmes.Errorln(err)
+				continue
 			}
 			if *recursive {
 				parseLinks(doc, u, urlChan, mp3Chan)
@@ -245,11 +246,13 @@ func parseContext(doc *goquery.Document, u *URL) {
 		f, e := os.Create(htmlFile)
 		if e != nil {
 			holmes.Errorln(e)
+			return
 		}
 		defer f.Close()
 		_, e = f.WriteString("\n----\n" + u.Title + "\n" + u.Content + "\n")
 		if e != nil {
 			holmes.Errorln(e)
+			return
 		}
 		count.Inc("html")
 		holmes.Infoln("html保存统计：下载", count.Value("html"))
