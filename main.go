@@ -24,15 +24,18 @@ var (
 	minSize     = flag.Int("size", 150, "最小Mp3大小 单位kB")
 	maxNum      = flag.Int("no", 20, "需要爬取的有效mp3数量")
 	recursive   = flag.Bool("re", true, "是否需要递归当前页面链接")
+	filterstr   = flag.String("filter", "dict/sent/cloze/w1/w2/w3/kewords", "需要过滤掉的 url 关键词,使用/分隔")
 
 	seen    = History{m: map[string]bool{}}
 	count   = new(Counts)
 	urlChan = make(chan *URL, 99999999)
 	mp3Chan = make(chan *URL, 99999999)
 	done    = make(chan int)
+	mp3done = make(chan int)
 
 	goDownNum = make(chan int, 2)
 	HOST      string
+	filters   []string
 )
 
 var (
@@ -95,6 +98,8 @@ func main() {
 	logger := startLog(*level)
 	defer logger.Stop()
 
+	filters = Split(*filterstr, "/")
+
 	holmes.Infof("Start:%v MinSize:%v MaxNum:%v Recursive:%v Dir:%v <audio>attribution:%v\n",
 		*url, *minSize, *maxNum, *recursive, *downloadDir, *mp3Attr)
 	holmes.Infof("Filter: URL:%v Pic:%v ParentPage:%v\n", *sUrl, *sMp3, *sParent)
@@ -108,14 +113,21 @@ func main() {
 	go HandleMp3()
 
 	<-done //等待信号，防止终端过早关闭
-	holmes.Infoln("图片统计：下载", count.Value("download"))
+	close(mp3Chan)
+	<-mp3done
+	holmes.Infoln("mp3统计：下载", count.Value("download"))
 	holmes.Infoln("END")
 }
 
 func HandleHTML() {
 	for {
 		select {
-		case u := <-urlChan:
+		case u1 := <-urlChan:
+			u := u1
+			if u == nil {
+				holmes.Errorln("handle nil url")
+				continue
+			}
 			res := u.Get()
 			if res == nil {
 				holmes.Warnln("HTML response is nil! following process will not execute.")
@@ -139,18 +151,18 @@ func HandleHTML() {
 			holmes.Infof("当前爬取了 %v 个网页 %s\n", count.Value("page"), u.Url)
 		default:
 			holmes.Infoln("待爬取队列为空，爬取完成")
+			close(urlChan)
 			done <- 1
+			return
 		}
 	}
 	runtime.Gosched()
 }
 
 func HandleMp3() {
-	for u := range mp3Chan {
-		u := u
-		goDownNum <- 1
-		go func() {
-			defer func() { <-goDownNum }()
+	for {
+		u, ok := <-mp3Chan
+		if u != nil {
 			var data []byte
 			res := u.Get()
 			if res == nil {
@@ -164,6 +176,10 @@ func HandleMp3() {
 				body := res.Body
 				data, _ = ioutil.ReadAll(body)
 				body.Close()
+				if res.ContentLength != int64(len(data)) {
+					holmes.Errorln("read mp3 ContentLength error ", res.ContentLength, u.Url)
+					return
+				}
 			} else {
 				holmes.Infoln(res.StatusCode)
 				sleep(3)
@@ -201,14 +217,17 @@ func HandleMp3() {
 			} else {
 				holmes.Infof("爬取%v 当前mp3大小：%v kB\n", count.Value("mp3"), len(data)/1000)
 			}
-		}()
-		runtime.Gosched() //显式地让出CPU时间给其他goroutine
+		}
+		if !ok && len(mp3Chan) == 0 {
+			mp3done <- 1
+			break
+		}
 	}
 }
 
 func parseContext(doc *goquery.Document, u *URL) {
 	if exists(u.FilePath) {
-		holmes.Infoln("html已存在，忽略", u.Url)
+		holmes.Debugln("html已存在，忽略", u.Url)
 		return
 	}
 	doc.Find("p").Each(func(i int, s *goquery.Selection) {
@@ -283,6 +302,11 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 					if !Contains(new.Path, *sUrl) {
 						return
 					}
+					for _, ft := range filters {
+						if Contains(new.Path, ft) {
+							return
+						}
+					}
 
 					if IsMp3(url) {
 						picChan <- new
@@ -293,7 +317,7 @@ func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) 
 							if Contains(url, "http") {
 								holmes.Debugln("New PAGE: ", url)
 							} else {
-								holmes.Infof("New PAGE: %s --> %s\n", url, new.Url)
+								holmes.Debugf("New PAGE: %s --> %s\n", url, new.Url)
 							}
 						default:
 							holmes.Warnln("url channel is full!!!!")
@@ -316,7 +340,7 @@ func parseMp3(doc *goquery.Document, parent *URL, picChan chan *URL) {
 			} else {
 				new := NewURL(url, parent, *downloadDir)
 				if seen.Has(new.Url) {
-					holmes.Infoln("mp3已爬取，忽略", new.Url)
+					holmes.Debugln("mp3已爬取，忽略", new.Url)
 				} else {
 					seen.Add(new.Url)
 					if !Contains(parent.Path, *sParent) {
@@ -328,11 +352,11 @@ func parseMp3(doc *goquery.Document, parent *URL, picChan chan *URL) {
 						return
 					}
 					if exists(new.FilePath) {
-						holmes.Infoln("mp3已存在，忽略", new.Url)
+						holmes.Debugln("mp3已存在，忽略", new.Url)
 						return
 					}
 					picChan <- new
-					holmes.Infoln("New <mp3> MP3:", url)
+					holmes.Debugln("New <mp3> MP3:", url)
 				}
 			}
 		}
