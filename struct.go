@@ -15,7 +15,7 @@ import (
 
 type Counts struct {
 	sync.RWMutex
-	page, mp3, download uint64
+	page, mp3, download, html uint64
 }
 
 func (n *Counts) Inc(key string) {
@@ -26,6 +26,8 @@ func (n *Counts) Inc(key string) {
 		n.page += 1
 	case "mp3":
 		n.mp3 += 1
+	case "html":
+		n.html += 1
 	case "download":
 		n.download += 1
 	}
@@ -39,6 +41,8 @@ func (n *Counts) Value(key string) uint64 {
 		return n.page
 	case "mp3":
 		return n.mp3
+	case "html":
+		return n.html
 	case "download":
 		return n.download
 	default:

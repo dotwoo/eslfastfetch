@@ -129,6 +129,9 @@ func HandleHTML() {
 			if *recursive {
 				parseLinks(doc, u, urlChan, mp3Chan)
 			}
+			if IsHtml(u.Url) {
+				parseContext(doc, u)
+			}
 			parseMp3(doc, u, mp3Chan)
 
 			count.Inc("page")
@@ -174,16 +177,16 @@ func HandleMp3() {
 				if e != nil {
 					cwd = "."
 				}
-				picFile := fp.Join(cwd, u.FilePath)
-				if exists(picFile) {
+				mp3File := fp.Join(cwd, u.FilePath)
+				if exists(mp3File) {
 					return
 				}
-				picDir := fp.Dir(picFile)
-				if !exists(picDir) {
-					mkdirs(picDir)
+				mp3Dir := fp.Dir(mp3File)
+				if !exists(mp3Dir) {
+					mkdirs(mp3Dir)
 				}
 
-				f, e := os.Create(picFile)
+				f, e := os.Create(mp3File)
 				if e != nil {
 					holmes.Errorln(e)
 				}
@@ -193,13 +196,66 @@ func HandleMp3() {
 					holmes.Errorln(e)
 				}
 				count.Inc("download")
-				holmes.Infof("图片统计：下载%v 当前图片大小：%v kB\n", count.Value("download"), len(data)/1000)
+				holmes.Infof("mp3统计：下载%v 当前mp3大小：%v kB\n", count.Value("download"), len(data)/1000)
 			} else {
-				holmes.Infof("爬取%v 当前图片大小：%v kB\n", count.Value("pic"), len(data)/1000)
+				holmes.Infof("爬取%v 当前mp3大小：%v kB\n", count.Value("mp3"), len(data)/1000)
 			}
 		}()
 		runtime.Gosched() //显式地让出CPU时间给其他goroutine
 	}
+}
+
+func parseContext(doc *goquery.Document, u *URL) {
+	if exists(u.FilePath) {
+		holmes.Infoln("html已存在，忽略", u.Url)
+		return
+	}
+	doc.Find("p").Each(func(i int, s *goquery.Selection) {
+		if s.HasClass("MsoNormal") {
+			ret, err := s.Html()
+			if err != nil {
+				holmes.Errorln(err.Error())
+
+			} else {
+				u.Content = ret
+			}
+		}
+	})
+	if u.Content != "" {
+		ret, err := doc.Find("title").Html()
+		if err != nil {
+			holmes.Errorln(err.Error())
+		}
+		u.Title = ret
+	}
+	if u.Title != "" {
+		cwd, e := os.Getwd()
+		if e != nil {
+			cwd = "."
+		}
+		htmlFile := fp.Join(cwd, u.FilePath)
+		if exists(htmlFile) {
+			return
+		}
+		htmlDir := fp.Dir(htmlFile)
+		if !exists(htmlDir) {
+			mkdirs(htmlDir)
+		}
+
+		f, e := os.Create(htmlFile)
+		if e != nil {
+			holmes.Errorln(e)
+		}
+		defer f.Close()
+		_, e = f.WriteString("\n----\n" + u.Title + "\n" + u.Content + "\n")
+		if e != nil {
+			holmes.Errorln(e)
+		}
+		count.Inc("html")
+		holmes.Infoln("html保存统计：下载", count.Value("html"))
+
+	}
+
 }
 
 func parseLinks(doc *goquery.Document, parent *URL, urlChan, picChan chan *URL) {
