@@ -17,7 +17,7 @@ func trace(msg string) func() {
 	start := time.Now()
 	//log.Printf("enter %s", msg)
 	return func() {
-		holmes.Infoln("exit %s (%s)", msg, time.Since(start))
+		holmes.Debugln("exit ", msg, time.Since(start))
 	}
 }
 
@@ -43,6 +43,16 @@ func exists(path string) bool {
 
 func IsMp3(url string) bool {
 	exts := []string{"mp3"}
+	for _, ext := range exts {
+		if Contains(ToLower(url), "."+ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsHtml(url string) bool {
+	exts := []string{"htm", "html"}
 	for _, ext := range exts {
 		if Contains(ToLower(url), "."+ext) {
 			return true

@@ -88,42 +88,45 @@ func NewURL(url string, p *URL, dir string) *URL {
 }
 
 func (u *URL) Prepare(dir string) {
+	var uUrl *neturl.URL
+	var err error
 	if !HasPrefix(u.Url, "http") {
 		base, err := neturl.Parse(u.Parent.Url)
 		if err != nil {
 			holmes.Errorln(err.Error())
 			return
 		}
-		uUrl, err := neturl.Parse(u.Url)
+		uUrl, err = neturl.Parse(u.Url)
 		if err != nil {
 			holmes.Errorln(err.Error())
 			return
 		}
-		u.Url = base.ResolveReference(uUrl).String()
+		uUrl = base.ResolveReference(uUrl)
+		u.Url = uUrl.String()
+	} else {
+		uUrl, err = neturl.Parse(u.Url)
+		if err != nil {
+			holmes.Errorln(err.Error())
+			return
+		}
 	}
-	part := Split(u.Url, "/")
-	u.Protocol = part[0]
-	hp := Split(part[2], ":")
 
-	u.Host = hp[0]
-	if len(hp) > 1 {
-		u.Port = hp[1]
-	}
-
-	u.Name = part[len(part)-1]
-	u.Origin = fmt.Sprintf("%v//%v", u.Protocol, u.Host)
-	u.Path = "/" + Join(part[3:], "/")
+	u.Protocol = uUrl.Scheme
+	u.Host = uUrl.Hostname()
+	u.Port = uUrl.Port()
+	u.Path = uUrl.Path
+	u.Name = fp.Base(u.Path)
+	u.Origin = fmt.Sprintf("%v://%v", u.Protocol, u.Host)
 
 	dirPath := fp.Join(dir, u.Host)
 	path := u.Path
-	if Contains(path, "?") {
-		ele := Split(path, "?")
-		path = ele[0]
+	if HasSuffix(path, "/") {
+		return
 	}
-	if !IsMp3(u.Name) {
-		path += ".mp3"
+	if IsHtml(u.Name) {
+		path += ".txt"
 	}
-	u.FilePath = fp.Join(dirPath, fp.Base(fp.Dir(path)), fp.Base(path))
+	u.FilePath = fp.Join(dirPath, path)
 }
 
 func (u *URL) Get() (res *http.Response) {
