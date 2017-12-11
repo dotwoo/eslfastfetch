@@ -29,7 +29,7 @@ _testmain.go
 *.zip
 vendor/
 glide.lock
-eslfastgo
+eslfastfetch
 debug
 VERSION
 Changelog

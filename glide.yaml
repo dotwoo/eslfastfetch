@@ -1,4 +1,4 @@
-package: github.com/dotwoo/eslfastgo
+package: github.com/dotwoo/eslfastfetch
 import:
 - package: github.com/PuerkitoBio/goquery
   version: ^1.1.0
