@@ -11,4 +11,5 @@ then
 fi
 echo "VER: $VERSION"
 echo $VERSION > VERSION
+git for-each-ref --format="%(refname:short) [%(taggerdate)] [%(subject)] %(body) by:%(authorname)" refs/tags > Changelog
 govvv build 
