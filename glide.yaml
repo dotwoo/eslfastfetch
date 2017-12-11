@@ -3,3 +3,6 @@ import:
 - package: github.com/PuerkitoBio/goquery
   version: ^1.1.0
 - package: github.com/leesper/holmes
+- package: github.com/jaytaylor/html2text
+- package: golang.org/x/net
+- package: github.com/olekukonko/tablewriter

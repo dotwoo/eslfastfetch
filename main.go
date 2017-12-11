@@ -11,6 +11,7 @@ import (
 	. "strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/jaytaylor/html2text"
 	"github.com/leesper/holmes"
 )
 
@@ -241,7 +242,14 @@ func parseContext(doc *goquery.Document, u *URL) {
 				holmes.Errorln(err.Error())
 
 			} else {
-				u.Content = u.Content + "\n" + ret
+				text, err := html2text.FromString(ret, html2text.Options{PrettyTables: true})
+				if err != nil {
+					holmes.Errorln(err.Error())
+					u.Content = u.Content + "\n" + ret
+				} else {
+					u.Content = u.Content + "\n" + text
+				}
+
 			}
 		}
 	})
