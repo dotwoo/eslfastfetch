@@ -241,7 +241,7 @@ func parseContext(doc *goquery.Document, u *URL) {
 				holmes.Errorln(err.Error())
 
 			} else {
-				u.Content = ret
+				u.Content = u.Content + "\n" + ret
 			}
 		}
 	})
